@@ -55,14 +55,16 @@ typedef CRITICAL_SECTION fc_mutex_impl_t;
 #  define fc_mutex_impl_unlock(M) LeaveCriticalSection (M)
 #  define fc_mutex_impl_finish(M) DeleteCriticalSection (M)
 
-typedef fc_mutex_impl_t fc_rwlock_impl_t;
-#  define FC_RWLOCK_IMPL_INIT         FC_MUTEX_IMPL_INIT
-#  define fc_rwlock_impl_init(L)      fc_mutex_impl_init (L)
-#  define fc_rwlock_impl_rdlock(L)    fc_mutex_impl_lock (L)
-#  define fc_rwlock_impl_wrlock(L)    fc_mutex_impl_lock (L)
-#  define fc_rwlock_impl_unlock_rd(L) fc_mutex_impl_unlock (L)
-#  define fc_rwlock_impl_unlock_wr(L) fc_mutex_impl_unlock (L)
-#  define fc_rwlock_impl_finish(L)    fc_mutex_impl_finish (L)
+typedef SRWLOCK fc_rwlock_impl_t;
+#  define FC_RWLOCK_IMPL_INIT         SRWLOCK_INIT
+#  define fc_rwlock_impl_init(L)      InitializeSRWLock (L)
+#  define fc_rwlock_impl_rdlock(L)    AcquireSRWLockShared (L)
+#  define fc_rwlock_impl_wrlock(L)    AcquireSRWLockExclusive (L)
+#  define fc_rwlock_impl_unlock_rd(L) ReleaseSRWLockShared (L)
+#  define fc_rwlock_impl_unlock_wr(L) ReleaseSRWLockExclusive (L)
+#  define fc_rwlock_impl_finish(L) \
+      FC_STMT_START {}             \
+      FC_STMT_END
 
 #elif !defined(FC_NO_MT) && (defined(HAVE_PTHREAD) || defined(__APPLE__))
 
