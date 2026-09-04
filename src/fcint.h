@@ -605,6 +605,7 @@ struct _FcConfig {
      * match preferrentially
      */
     FcFontSet *fonts[FcSetApplication + 1];
+    FcRwLock   fonts_lock;
     /*
      * Fontconfig can periodically rescan the system configuration
      * and font directories.  This rescanning occurs when font

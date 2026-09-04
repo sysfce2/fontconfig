@@ -210,6 +210,7 @@ FcConfigCreate (void)
     config->maxObjects = 0;
     for (set = FcSetSystem; set <= FcSetApplication; set++)
 	config->fonts[set] = 0;
+    FcRwLockInit (&config->fonts_lock);
 
     config->rescanTime = time (0);
     config->rescanInterval = 30;
@@ -413,6 +414,8 @@ FcConfigDestroy (FcConfig *config)
 	if (config->appFonts)
 	    FcStrSetDestroy (config->appFonts);
 
+	FcRwLockFinish (&config->fonts_lock);
+
 	free (config);
     }
 }
@@ -547,6 +550,16 @@ FcConfigAddDirList (FcConfig *config, FcSetName set, FcStrSet *dirSet)
  * and build the set of available fonts.
  */
 
+static void
+FcConfigSetFontsLocked (FcConfig  *config,
+                        FcFontSet *fonts,
+                        FcSetName  set)
+{
+    if (config->fonts[set])
+	FcFontSetDestroy (config->fonts[set]);
+    config->fonts[set] = fonts;
+}
+
 FcBool
 FcConfigBuildFonts (FcConfig *config)
 {
@@ -563,14 +576,17 @@ FcConfigBuildFonts (FcConfig *config)
 	goto bail;
     }
 
-    FcConfigSetFonts (config, fonts, FcSetSystem);
+    FcRwLockWriteLock (&config->fonts_lock);
+    FcConfigSetFontsLocked (config, fonts, FcSetSystem);
 
     if (!FcConfigAddDirList (config, FcSetSystem, config->fontDirs)) {
 	ret = FcFalse;
-	goto bail;
+	goto bail_unlock;
     }
     if (FcDebug() & FC_DBG_FONTSET)
 	FcFontSetPrint (fonts);
+bail_unlock:
+    FcRwLockUnlockWrite (&config->fonts_lock);
 bail:
     FcConfigDestroy (config);
 
@@ -818,6 +834,14 @@ FcConfigGetCache (FcConfig *config FC_UNUSED)
     return NULL;
 }
 
+/*
+ * Note: this function is not thread-safe as documented in doc/fcconfig.fncs.
+ * It returns an internal pointer to config->fonts[set], which cannot be safely
+ * accessed without external synchronization if other threads may concurrently
+ * modify font sets (e.g. via FcConfigAppFontAdd* or FcConfigAppFontClear).
+ * Acquiring fonts_lock only during the pointer read would not protect callers
+ * after this function returns.
+ */
 FcFontSet *
 FcConfigGetFonts (FcConfig *config,
                   FcSetName set)
@@ -835,9 +859,9 @@ FcConfigSetFonts (FcConfig  *config,
                   FcFontSet *fonts,
                   FcSetName  set)
 {
-    if (config->fonts[set])
-	FcFontSetDestroy (config->fonts[set]);
-    config->fonts[set] = fonts;
+    FcRwLockWriteLock (&config->fonts_lock);
+    FcConfigSetFontsLocked (config, fonts, set);
+    FcRwLockUnlockWrite (&config->fonts_lock);
 }
 
 FcConfig *
@@ -2746,14 +2770,16 @@ FcConfigAppFontAddFile (FcConfig      *config,
     if (!config)
 	return FcFalse;
 
-    set = FcConfigGetFonts (config, FcSetApplication);
+    FcRwLockWriteLock (&config->fonts_lock);
+
+    set = config->fonts[FcSetApplication];
     if (!set) {
 	set = FcFontSetCreate();
 	if (!set) {
 	    ret = FcFalse;
 	    goto bail;
 	}
-	FcConfigSetFonts (config, set, FcSetApplication);
+	FcConfigSetFontsLocked (config, set, FcSetApplication);
     }
 
     if (!FcFileScanFontFile (set, file, config)) {
@@ -2765,6 +2791,7 @@ FcConfigAppFontAddFile (FcConfig      *config,
 	goto bail;
     }
 bail:
+    FcRwLockUnlockWrite (&config->fonts_lock);
     FcConfigDestroy (config);
 
     return ret;
@@ -2791,14 +2818,16 @@ FcConfigAppFontAddDir (FcConfig      *config,
 	goto bail;
     }
 
-    set = FcConfigGetFonts (config, FcSetApplication);
+    FcRwLockWriteLock (&config->fonts_lock);
+
+    set = config->fonts[FcSetApplication];
     if (!set) {
 	set = FcFontSetCreate();
 	if (!set) {
 	    ret = FcFalse;
 	    goto bail2;
 	}
-	FcConfigSetFonts (config, set, FcSetApplication);
+	FcConfigSetFontsLocked (config, set, FcSetApplication);
     }
 
     if (!FcStrSetAddFilename (dirs, dir)) {
@@ -2814,6 +2843,7 @@ FcConfigAppFontAddDir (FcConfig      *config,
 	goto bail2;
     }
 bail2:
+    FcRwLockUnlockWrite (&config->fonts_lock);
     FcStrSetDestroy (dirs);
 bail:
     FcConfigDestroy (config);
@@ -2828,8 +2858,10 @@ FcConfigAppFontClear (FcConfig *config)
     if (!config)
 	return;
 
+    FcRwLockWriteLock (&config->fonts_lock);
     FcStrSetDeleteAll (config->appFonts);
-    FcConfigSetFonts (config, 0, FcSetApplication);
+    FcConfigSetFontsLocked (config, 0, FcSetApplication);
+    FcRwLockUnlockWrite (&config->fonts_lock);
 
     FcConfigDestroy (config);
 }
