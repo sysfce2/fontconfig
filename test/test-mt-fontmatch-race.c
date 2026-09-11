@@ -4,7 +4,7 @@
 #include "test-mt-race.h"
 
 static void
-reader_sort (void)
+reader_match (void)
 {
     FcPattern *pattern = FcPatternCreate ();
     if (!pattern)
@@ -14,14 +14,14 @@ reader_sort (void)
     FcConfigSubstitute (NULL, pattern, FcMatchPattern);
     FcDefaultSubstitute (pattern);
     FcResult   result;
-    FcFontSet *fs = FcFontSort (NULL, pattern, FcFalse, NULL, &result);
-    if (fs)
-	FcFontSetDestroy (fs);
+    FcPattern *match = FcFontMatch (NULL, pattern, &result);
+    if (match)
+	FcPatternDestroy (match);
     FcPatternDestroy (pattern);
 }
 
 int
 main (int argc, char **argv)
 {
-    return run_font_race_test (reader_sort);
+    return run_font_race_test (reader_match);
 }
