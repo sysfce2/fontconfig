@@ -192,9 +192,20 @@ FcInitLoadOwnConfigAndFonts (FcConfig *config)
     return config;
 }
 
+#ifdef ENABLE_TEST_HOOKS
+/* Counts how many times the default configuration has been fully built.
+ * Test-only hook (see test-mt-fcinit) to assert that concurrent lazy
+ * initialization builds the default config exactly once. Not compiled
+ * into production builds. */
+fc_atomic_int_t FcConfigInitCount;
+#endif
+
 FcConfig *
 FcInitLoadConfigAndFonts (void)
 {
+#ifdef ENABLE_TEST_HOOKS
+    fc_atomic_int_add (FcConfigInitCount, 1);
+#endif
     return FcInitLoadOwnConfigAndFonts (NULL);
 }
 
