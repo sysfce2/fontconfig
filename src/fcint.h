@@ -1284,6 +1284,10 @@ FcPtrListIterRemove (FcPtrList     *list,
                      FcPtrListIter *iter);
 
 /* fcinit.c */
+#ifdef ENABLE_TEST_HOOKS
+extern FcPrivate fc_atomic_int_t FcConfigInitCount;
+#endif
+
 FcPrivate FcConfig *
 FcInitReinitializeWith (FcConfig *config);
 

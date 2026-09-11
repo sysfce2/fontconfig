@@ -25,6 +25,8 @@
 #include <fontconfig/fontconfig.h>
 
 #include <pthread.h>
+#include <stdatomic.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -35,6 +37,13 @@
 struct thr_arg_s {
     int thr_num;
 };
+
+/* Start gate: make all threads hit the lazy default-config init
+ * simultaneously so the concurrent-init race window is actually exercised.
+ * pthread_barrier_t is unavailable on macOS (which this test builds on),
+ * so use portable atomics instead. */
+static atomic_int  ready;
+static atomic_bool go;
 
 static void
 test_match (int thr_num, int test_num)
@@ -61,6 +70,11 @@ run_test_in_thread (void *arg)
     int               thread_num = thr_arg->thr_num;
     int               i = 0;
 
+    /* Announce readiness, then wait for the start gate to open. */
+    atomic_fetch_add_explicit (&ready, 1, memory_order_relaxed);
+    while (!atomic_load_explicit (&go, memory_order_acquire))
+	;
+
     for (; i < NTEST; i++)
 	test_match (thread_num, i);
 
@@ -78,6 +92,9 @@ main (int argc, char **argv)
 
     printf ("Creating %d threads\n", NTHR);
 
+    atomic_init (&ready, 0);
+    atomic_init (&go, false);
+
     for (i = 0; i < NTHR; i++) {
 	int result;
 	thr_args[i].thr_num = i;
@@ -88,6 +105,13 @@ main (int argc, char **argv)
 	    break;
 	}
     }
+
+    /* Open the gate once every successfully-created thread is ready.
+     * Gate on 'i' (threads actually created), not NTHR, so a partial
+     * pthread_create failure does not hang here. */
+    while (atomic_load_explicit (&ready, memory_order_acquire) < i)
+	;
+    atomic_store_explicit (&go, true, memory_order_release);
 
     for (j = 0; j < i; j++) {
 	pthread_join (threads[j], NULL);

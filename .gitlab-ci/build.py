@@ -407,8 +407,8 @@ class BuildMeson(Build):
 
     def _build_options(self):
         """Build meson options"""
-        self._handle_features()
         self._handle_subproject_build()
+        self._handle_features()
 
         if self.args.optimization:
             self.buildopt.append(f"--optimization={self.args.optimization}")

@@ -226,6 +226,11 @@ endif
 i18n = import('i18n')
 gettext_args = [ '--msgid-bugs-address=@0@'.format(conf.get('PACKAGE_BUGREPORT')) ]
 
+# Internal test instrumentation hooks (never enable for production builds)
+if get_option('test-hooks').enabled()
+  conf.set('ENABLE_TEST_HOOKS', 1)
+endif
+
 # Check for libintl.h
 opt_nls = get_option('nls')
 libintl_dep = dependency('intl', required: opt_nls, fallback: ['libintl', 'libintl_dep'])
