@@ -337,6 +337,7 @@ msys2:latest@container-clean:
       buildopt+=(-t $FC_BUILD_TYPE)
       buildopt+=(-X $FC_XML_BACKEND)
       buildopt+=(-O g)
+      buildopt+=(-e test-hooks)
       export buildopt
     - "scp -r $(pwd) vm:"
     - echo "CI_JOB_ID=\"$CI_JOB_ID\"" > fcenv
@@ -389,6 +390,7 @@ msys2:latest@container-clean:
       buildopt+=(-t $FC_BUILD_TYPE)
       buildopt+=(-X $FC_XML_BACKEND)
       buildopt+=(-O g)
+      buildopt+=(-e test-hooks)
       export buildopt
     - echo "CI_JOB_ID=\"$CI_JOB_ID\"" > fcenv
     - echo "CI_JOB_NAME=\"$CI_JOB_NAME\"" >> fcenv
