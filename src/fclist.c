@@ -564,12 +564,14 @@ FcFontList (FcConfig    *config,
     config = FcConfigReference (config);
     if (!config)
 	return NULL;
+    FcRwLockReadLock (&config->fonts_lock);
     nsets = 0;
     if (config->fonts[FcSetSystem])
 	sets[nsets++] = config->fonts[FcSetSystem];
     if (config->fonts[FcSetApplication])
 	sets[nsets++] = config->fonts[FcSetApplication];
     ret = FcFontSetList (config, sets, nsets, p, os);
+    FcRwLockUnlockRead (&config->fonts_lock);
     FcConfigDestroy (config);
 
     return ret;

@@ -1037,6 +1037,7 @@ FcFontMatch (FcConfig  *config,
     config = FcConfigReference (config);
     if (!config)
 	return NULL;
+    FcRwLockReadLock (&config->fonts_lock);
     nsets = 0;
     if (config->fonts[FcSetSystem])
 	sets[nsets++] = config->fonts[FcSetSystem];
@@ -1044,6 +1045,7 @@ FcFontMatch (FcConfig  *config,
 	sets[nsets++] = config->fonts[FcSetApplication];
 
     best = FcFontSetMatchInternal (sets, nsets, p, result);
+    FcRwLockUnlockRead (&config->fonts_lock);
     if (best) {
 	ret = FcFontRenderPrepare (config, p, best);
 	FcPatternDestroy (best);
@@ -1349,12 +1351,14 @@ FcFontSort (FcConfig   *config,
     config = FcConfigReference (config);
     if (!config)
 	return NULL;
+    FcRwLockReadLock (&config->fonts_lock);
     nsets = 0;
     if (config->fonts[FcSetSystem])
 	sets[nsets++] = config->fonts[FcSetSystem];
     if (config->fonts[FcSetApplication])
 	sets[nsets++] = config->fonts[FcSetApplication];
     ret = FcFontSetSort (config, sets, nsets, p, trim, csp, result);
+    FcRwLockUnlockRead (&config->fonts_lock);
     FcConfigDestroy (config);
 
     return ret;

@@ -49,6 +49,11 @@ if host_machine.system() != 'windows'
     ['test-mt-fcinit.c', {'include_directories': include_directories('../src'), 'dependencies': [libintl_dep, dependency('threads')]}],
     ['test-mt-cache-stress.c', {'dependencies': dependency('threads'), 'c_args': ['-DFONTFILE="@0@"'.format(join_paths(meson.current_source_dir(), '4x6.pcf'))]}],
     ['test-appfont.c', {'c_args': ['-DSRCDIR="@0@"'.format(meson.current_source_dir())]}],
+    ['test-mt-fontsort-race.c', {'dependencies': dependency('threads'), 'c_args': ['-DFONTFILE="@0@"'.format(join_paths(meson.current_source_dir(), 'no_family_name.ttf'))]}],
+    ['test-mt-fontmatch-race.c', {'dependencies': dependency('threads'), 'c_args': ['-DFONTFILE="@0@"'.format(join_paths(meson.current_source_dir(), 'no_family_name.ttf'))]}],
+    ['test-mt-fontlist-race.c', {'dependencies': dependency('threads'), 'c_args': ['-DFONTFILE="@0@"'.format(join_paths(meson.current_source_dir(), 'no_family_name.ttf'))]}],
+    ['test-mt-appfontclear-race.c', {'dependencies': dependency('threads'), 'c_args': ['-DFONTFILE="@0@"'.format(join_paths(meson.current_source_dir(), 'no_family_name.ttf'))]}],
+    ['test-rwlock.c', {'include_directories': include_directories('../src'), 'dependencies': dependency('threads')}],
   ]
   tests_build_only += [
     ['bench-cache.c', {'dependencies': dependency('threads')}], # POSIX/pthread only

@@ -55,15 +55,35 @@ typedef CRITICAL_SECTION fc_mutex_impl_t;
 #  define fc_mutex_impl_unlock(M) LeaveCriticalSection (M)
 #  define fc_mutex_impl_finish(M) DeleteCriticalSection (M)
 
+typedef SRWLOCK fc_rwlock_impl_t;
+#  define FC_RWLOCK_IMPL_INIT         SRWLOCK_INIT
+#  define fc_rwlock_impl_init(L)      InitializeSRWLock (L)
+#  define fc_rwlock_impl_rdlock(L)    AcquireSRWLockShared (L)
+#  define fc_rwlock_impl_wrlock(L)    AcquireSRWLockExclusive (L)
+#  define fc_rwlock_impl_unlock_rd(L) ReleaseSRWLockShared (L)
+#  define fc_rwlock_impl_unlock_wr(L) ReleaseSRWLockExclusive (L)
+#  define fc_rwlock_impl_finish(L) \
+      FC_STMT_START {}             \
+      FC_STMT_END
+
 #elif !defined(FC_NO_MT) && (defined(HAVE_PTHREAD) || defined(__APPLE__))
 
 #  include <pthread.h>
 typedef pthread_mutex_t fc_mutex_impl_t;
-#  define FC_MUTEX_IMPL_INIT      PTHREAD_MUTEX_INITIALIZER
-#  define fc_mutex_impl_init(M)   pthread_mutex_init (M, NULL)
-#  define fc_mutex_impl_lock(M)   pthread_mutex_lock (M)
-#  define fc_mutex_impl_unlock(M) pthread_mutex_unlock (M)
-#  define fc_mutex_impl_finish(M) pthread_mutex_destroy (M)
+#  define FC_MUTEX_IMPL_INIT          PTHREAD_MUTEX_INITIALIZER
+#  define fc_mutex_impl_init(M)       pthread_mutex_init (M, NULL)
+#  define fc_mutex_impl_lock(M)       pthread_mutex_lock (M)
+#  define fc_mutex_impl_unlock(M)     pthread_mutex_unlock (M)
+#  define fc_mutex_impl_finish(M)     pthread_mutex_destroy (M)
+
+typedef pthread_rwlock_t fc_rwlock_impl_t;
+#  define FC_RWLOCK_IMPL_INIT         PTHREAD_RWLOCK_INITIALIZER
+#  define fc_rwlock_impl_init(L)      pthread_rwlock_init (L, NULL)
+#  define fc_rwlock_impl_rdlock(L)    pthread_rwlock_rdlock (L)
+#  define fc_rwlock_impl_wrlock(L)    pthread_rwlock_wrlock (L)
+#  define fc_rwlock_impl_unlock_rd(L) pthread_rwlock_unlock (L)
+#  define fc_rwlock_impl_unlock_wr(L) pthread_rwlock_unlock (L)
+#  define fc_rwlock_impl_finish(L)    pthread_rwlock_destroy (L)
 
 #elif !defined(FC_NO_MT) && defined(HAVE_INTEL_ATOMIC_PRIMITIVES)
 
@@ -91,6 +111,15 @@ typedef volatile int fc_mutex_impl_t;
 #  define fc_mutex_impl_finish(M) \
       FC_STMT_START {}            \
       FC_STMT_END
+
+typedef fc_mutex_impl_t fc_rwlock_impl_t;
+#  define FC_RWLOCK_IMPL_INIT         FC_MUTEX_IMPL_INIT
+#  define fc_rwlock_impl_init(L)      fc_mutex_impl_init (L)
+#  define fc_rwlock_impl_rdlock(L)    fc_mutex_impl_lock (L)
+#  define fc_rwlock_impl_wrlock(L)    fc_mutex_impl_lock (L)
+#  define fc_rwlock_impl_unlock_rd(L) fc_mutex_impl_unlock (L)
+#  define fc_rwlock_impl_unlock_wr(L) fc_mutex_impl_unlock (L)
+#  define fc_rwlock_impl_finish(L)    fc_mutex_impl_finish (L)
 
 #elif !defined(FC_NO_MT)
 
@@ -120,6 +149,15 @@ typedef volatile int fc_mutex_impl_t;
       FC_STMT_START {}            \
       FC_STMT_END
 
+typedef fc_mutex_impl_t fc_rwlock_impl_t;
+#  define FC_RWLOCK_IMPL_INIT         FC_MUTEX_IMPL_INIT
+#  define fc_rwlock_impl_init(L)      fc_mutex_impl_init (L)
+#  define fc_rwlock_impl_rdlock(L)    fc_mutex_impl_lock (L)
+#  define fc_rwlock_impl_wrlock(L)    fc_mutex_impl_lock (L)
+#  define fc_rwlock_impl_unlock_rd(L) fc_mutex_impl_unlock (L)
+#  define fc_rwlock_impl_unlock_wr(L) fc_mutex_impl_unlock (L)
+#  define fc_rwlock_impl_finish(L)    fc_mutex_impl_finish (L)
+
 #else /* FC_NO_MT */
 
 typedef int fc_mutex_impl_t;
@@ -137,6 +175,15 @@ typedef int fc_mutex_impl_t;
       FC_STMT_START {}            \
       FC_STMT_END
 
+typedef fc_mutex_impl_t fc_rwlock_impl_t;
+#  define FC_RWLOCK_IMPL_INIT         FC_MUTEX_IMPL_INIT
+#  define fc_rwlock_impl_init(L)      fc_mutex_impl_init (L)
+#  define fc_rwlock_impl_rdlock(L)    fc_mutex_impl_lock (L)
+#  define fc_rwlock_impl_wrlock(L)    fc_mutex_impl_lock (L)
+#  define fc_rwlock_impl_unlock_rd(L) fc_mutex_impl_unlock (L)
+#  define fc_rwlock_impl_unlock_wr(L) fc_mutex_impl_unlock (L)
+#  define fc_rwlock_impl_finish(L)    fc_mutex_impl_finish (L)
+
 #endif
 
 #define FC_MUTEX_INIT { FC_MUTEX_IMPL_INIT }
@@ -145,5 +192,14 @@ static inline void      FcMutexInit (FcMutex *m) { fc_mutex_impl_init (m); }
 static inline void      FcMutexLock (FcMutex *m) { fc_mutex_impl_lock (m); }
 static inline void      FcMutexUnlock (FcMutex *m) { fc_mutex_impl_unlock (m); }
 static inline void      FcMutexFinish (FcMutex *m) { fc_mutex_impl_finish (m); }
+
+#define FC_RWLOCK_INIT { FC_RWLOCK_IMPL_INIT }
+typedef fc_rwlock_impl_t FcRwLock;
+static inline void       FcRwLockInit (FcRwLock *l) { fc_rwlock_impl_init (l); }
+static inline void       FcRwLockReadLock (FcRwLock *l) { fc_rwlock_impl_rdlock (l); }
+static inline void       FcRwLockWriteLock (FcRwLock *l) { fc_rwlock_impl_wrlock (l); }
+static inline void       FcRwLockUnlockRead (FcRwLock *l) { fc_rwlock_impl_unlock_rd (l); }
+static inline void       FcRwLockUnlockWrite (FcRwLock *l) { fc_rwlock_impl_unlock_wr (l); }
+static inline void       FcRwLockFinish (FcRwLock *l) { fc_rwlock_impl_finish (l); }
 
 #endif /* _FCMUTEX_H_ */
