@@ -52,6 +52,7 @@ if host_machine.system() != 'windows'
     ['test-mt-fontsort-race.c', {'dependencies': dependency('threads'), 'c_args': ['-DFONTFILE="@0@"'.format(join_paths(meson.current_source_dir(), 'no_family_name.ttf'))]}],
     ['test-mt-fontmatch-race.c', {'dependencies': dependency('threads'), 'c_args': ['-DFONTFILE="@0@"'.format(join_paths(meson.current_source_dir(), 'no_family_name.ttf'))]}],
     ['test-mt-fontlist-race.c', {'dependencies': dependency('threads'), 'c_args': ['-DFONTFILE="@0@"'.format(join_paths(meson.current_source_dir(), 'no_family_name.ttf'))]}],
+    ['test-mt-appfontclear-race.c', {'dependencies': dependency('threads'), 'c_args': ['-DFONTFILE="@0@"'.format(join_paths(meson.current_source_dir(), 'no_family_name.ttf'))]}],
     ['test-rwlock.c', {'include_directories': include_directories('../src'), 'dependencies': dependency('threads')}],
   ]
   tests_build_only += [

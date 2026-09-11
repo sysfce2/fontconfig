@@ -27,9 +27,15 @@ static atomic_bool race_go;
 static atomic_bool race_stop;
 
 typedef void (*fc_race_reader_op_t) (void);
+typedef void (*fc_race_writer_op_t) (FcConfig *config);
 
 struct race_reader_arg {
     fc_race_reader_op_t op;
+};
+
+struct race_writer_arg {
+    fc_race_writer_op_t op;
+    FcConfig           *config;
 };
 
 static void *
@@ -48,25 +54,32 @@ race_reader (void *arg)
 static void *
 race_writer (void *arg)
 {
-    FcConfig *config = (FcConfig *)arg;
+    struct race_writer_arg *warg = (struct race_writer_arg *)arg;
 
     while (!atomic_load_explicit (&race_go, memory_order_acquire)) {
     }
     for (int i = 0; i < NUM_ITERATIONS && !atomic_load_explicit (&race_stop, memory_order_relaxed); i++) {
-	FcConfigAppFontAddFile (config, (const FcChar8 *)FONTFILE);
+	warg->op (warg->config);
     }
     atomic_store_explicit (&race_stop, 1, memory_order_relaxed);
     return NULL;
 }
 
+static void
+default_writer_op (FcConfig *config)
+{
+    FcConfigAppFontAddFile (config, (const FcChar8 *)FONTFILE);
+}
+
 static inline int
-run_font_race_test (fc_race_reader_op_t reader_op)
+run_font_race_test_full (fc_race_reader_op_t reader_op, fc_race_writer_op_t writer_op)
 {
     pthread_t		   readers[NUM_READERS];
     pthread_t		   w;
     FcConfig		  *config;
     FcFontSet		  *app_set;
     struct race_reader_arg rarg;
+    struct race_writer_arg warg;
     int			   i;
 
     config = FcConfigCreate ();
@@ -100,6 +113,8 @@ run_font_race_test (fc_race_reader_op_t reader_op)
     atomic_init (&race_stop, 0);
 
     rarg.op = reader_op;
+    warg.op = writer_op;
+    warg.config = config;
 
     for (i = 0; i < NUM_READERS; i++) {
 	if (pthread_create (&readers[i], NULL, race_reader, &rarg) != 0) {
@@ -107,7 +122,7 @@ run_font_race_test (fc_race_reader_op_t reader_op)
 	    return 1;
 	}
     }
-    if (pthread_create (&w, NULL, race_writer, config) != 0) {
+    if (pthread_create (&w, NULL, race_writer, &warg) != 0) {
 	fprintf (stderr, "Failed to create writer thread\n");
 	return 1;
     }
@@ -122,6 +137,12 @@ run_font_race_test (fc_race_reader_op_t reader_op)
 
     FcFini ();
     return 0;
+}
+
+static inline int
+run_font_race_test (fc_race_reader_op_t reader_op)
+{
+    return run_font_race_test_full (reader_op, default_writer_op);
 }
 
 #endif /* TEST_MT_RACE_H */
