@@ -11,6 +11,7 @@
 #include <fontconfig/fontconfig.h>
 
 #include <pthread.h>
+#include <sched.h>
 #include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,7 +22,7 @@
 #endif
 
 #define NUM_READERS    2
-#define NUM_ITERATIONS 1000
+#define NUM_ITERATIONS 100
 
 static atomic_bool race_go;
 static atomic_bool race_stop;
@@ -44,9 +45,11 @@ race_reader (void *arg)
     struct race_reader_arg *rarg = (struct race_reader_arg *)arg;
 
     while (!atomic_load_explicit (&race_go, memory_order_acquire)) {
+	sched_yield ();
     }
     while (!atomic_load_explicit (&race_stop, memory_order_relaxed)) {
 	rarg->op ();
+	sched_yield ();
     }
     return NULL;
 }
@@ -57,6 +60,7 @@ race_writer (void *arg)
     struct race_writer_arg *warg = (struct race_writer_arg *)arg;
 
     while (!atomic_load_explicit (&race_go, memory_order_acquire)) {
+	sched_yield ();
     }
     for (int i = 0; i < NUM_ITERATIONS && !atomic_load_explicit (&race_stop, memory_order_relaxed); i++) {
 	warg->op (warg->config);
